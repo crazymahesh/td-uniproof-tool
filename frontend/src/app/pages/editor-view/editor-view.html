@@ -1,0 +1,345 @@
+<!-- ====== TOP HEADER (matches landing page design) ====== -->
+<header class="editor-header">
+    <!-- Left: UniProof brand (same as landing sidebar) -->
+    <div class="editor-header-brand">
+        <svg class="editor-brand-icon" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 12C10 8.686 12.686 6 16 6C19.314 6 22 8.686 22 12C22 15.314 19.314 18 16 18C14.343 18 12.843 17.321 11.757 16.243M11.757 16.243C10.672 15.164 10 13.66 10 12M11.757 16.243L10 18M28 12C28 15.314 25.314 18 22 18C18.686 18 16 15.314 16 12C16 8.686 18.686 6 22 6C23.657 6 25.157 6.679 26.243 7.757M26.243 7.757C27.328 8.836 28 10.34 28 12M26.243 7.757L28 6" stroke="var(--primary-color)" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span class="editor-brand-text">UniProof</span>
+    </div>
+
+    <!-- Middle: save status + action buttons + user info -->
+    <div class="editor-header-actions">
+        <span class="editor-save-status">
+            <i class="fas fa-check-circle"></i> {{ saveStatusText }}
+        </span>
+        <div class="editor-header-divider"></div>
+        <button class="editor-btn editor-btn-outline" (click)="onSave()">Save</button>
+        <button class="editor-btn editor-btn-primary" (click)="onSubmit()" title="Convert HTML to JATS XML and download">Submit</button>
+        <button class="editor-btn editor-btn-outline" (click)="openPreview()" title="Preview HTML content">Preview</button>
+        <div class="editor-header-divider"></div>
+        <div class="editor-user-info">
+            <div class="editor-user-name">{{ userInfo?.username }}</div>
+            <div class="editor-user-role">Author</div>
+        </div>
+    </div>
+
+    <!-- Right: Thomson Digital logo (same as landing page) -->
+    <img src="img/td-logo.png" class="editor-header-td-logo" alt="Thomson Digital">
+</header>
+
+<!-- ====== THREE-COLUMN EDITOR LAYOUT ====== -->
+<div class="editor-body">
+
+    <!-- ====== LEFT SIDEBAR (Figures / Search / Attachments) ====== -->
+    <aside class="editor-left-sidebar">
+
+        <!-- Tab Buttons -->
+        <ul class="editor-left-tabs" id="leftSidebarTab" role="tablist">
+            <li role="presentation">
+                <button class="editor-left-tab-btn active" id="figures-tab"
+                    data-bs-toggle="tab" data-bs-target="#figures"
+                    type="button" role="tab" title="Figures">
+                    <i class="fas fa-image"></i>
+                    <span>Figures</span>
+                </button>
+            </li>
+            <li role="presentation">
+                <button class="editor-left-tab-btn" id="search-tab"
+                    data-bs-toggle="tab" data-bs-target="#search"
+                    type="button" role="tab" title="Search">
+                    <i class="fas fa-search"></i>
+                    <span>Search</span>
+                </button>
+            </li>
+            <li role="presentation">
+                <button class="editor-left-tab-btn" id="attachments-tab"
+                    data-bs-toggle="tab" data-bs-target="#attachments"
+                    type="button" role="tab" title="Attachments">
+                    <i class="fas fa-paperclip"></i>
+                    <span>Files</span>
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content editor-left-tab-content" id="leftSidebarTabContent">
+
+            <!-- ── Figures Tab ── -->
+            <div class="tab-pane fade show active" id="figures" role="tabpanel">
+                <div class="sidebar-section-label">Figures ({{ figures.length }})</div>
+
+                <div *ngIf="figures.length === 0" class="sidebar-empty-state">
+                    <i class="fas fa-image sidebar-empty-icon"></i>
+                    <p class="sidebar-empty-text">No figures found</p>
+                </div>
+
+                <div *ngIf="figures.length > 0" class="figures-list">
+                    <div *ngFor="let figure of figures"
+                        class="figure-item"
+                        (click)="navigateToFigure(figure.id)">
+                        <i class="fas fa-image figure-item-icon"></i>
+                        <div class="figure-item-body">
+                            <div class="figure-item-label" [title]="figure.label">{{ figure.label }}</div>
+                            <div class="figure-item-caption" *ngIf="figure.caption" [title]="figure.caption">
+                                {{ figure.caption }}
+                            </div>
+                            <div class="figure-item-version" *ngIf="figure.version">v{{ figure.version }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Search Tab ── -->
+            <div class="tab-pane fade" id="search" role="tabpanel">
+                <div class="sidebar-section-label">Search</div>
+
+                <div class="sidebar-search-row">
+                    <div class="sidebar-search-field">
+                        <i class="fas fa-search"></i>
+                        <input type="text"
+                            class="sidebar-search-input"
+                            placeholder="Enter text to search..."
+                            [(ngModel)]="searchText"
+                            (input)="onSearchInputChange()"
+                            (keyup.enter)="performSearch()">
+                    </div>
+                    <button class="sidebar-action-btn primary" (click)="performSearch()" title="Search">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button class="sidebar-action-btn" (click)="clearSearch()" title="Clear">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div *ngIf="searchText && searchResults.length > 0" class="search-results-wrapper">
+                    <div class="search-results-count">Found {{ searchResults.length }} result(s)</div>
+                    <div *ngFor="let result of searchResults; let i = index"
+                        class="search-result-item"
+                        [class.active]="i === selectedResultIndex"
+                        (click)="navigateToSearchResult(i)">
+                        <i class="fas fa-file-alt search-result-icon"></i>
+                        <div class="search-result-body">
+                            <div class="search-result-text" [title]="result.text">"{{ result.text }}"</div>
+                            <div class="search-result-context" [title]="result.context">{{ result.context }}</div>
+                            <div class="search-result-index">Result {{ i + 1 }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div *ngIf="searchText && searchResults.length === 0" class="sidebar-empty-state">
+                    <i class="fas fa-search sidebar-empty-icon"></i>
+                    <p class="sidebar-empty-text">No matches found</p>
+                    <span class="sidebar-empty-hint">Try adjusting your search</span>
+                </div>
+
+                <div *ngIf="!searchText" class="sidebar-empty-state">
+                    <i class="fas fa-search sidebar-empty-icon"></i>
+                    <p class="sidebar-empty-text">Enter text above to search</p>
+                </div>
+            </div>
+
+            <!-- ── Attachments Tab ── -->
+            <div class="tab-pane fade" id="attachments" role="tabpanel">
+                <div class="sidebar-section-label">Attachments</div>
+                <div class="sidebar-empty-state">
+                    <i class="fas fa-paperclip sidebar-empty-icon"></i>
+                    <p class="sidebar-empty-text">No attachments</p>
+                    <button class="sidebar-add-btn">
+                        <i class="fas fa-plus"></i> Add File
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </aside>
+
+    <!-- ====== MAIN EDITOR AREA ====== -->
+    <div class="editor-main-col">
+        <app-editor-component
+            [documentId]="documentId"
+            [documentDetails]="documentDetails"
+            (figuresExtracted)="onFiguresExtracted($event)">
+        </app-editor-component>
+    </div>
+
+    <!-- ====== RIGHT SIDEBAR (Comments & Track Changes) ====== -->
+    <aside class="editor-right-sidebar">
+
+        <!-- Sidebar Header: pin/refresh + tab buttons -->
+        <div class="editor-right-sidebar-header">
+            <div class="right-sidebar-controls">
+                <button class="editor-icon-btn" title="Pin"><i class="fas fa-thumbtack"></i></button>
+                <button class="editor-icon-btn" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+            </div>
+            <ul class="editor-right-tabs" id="rightSidebarTab" role="tablist">
+                <li role="presentation">
+                    <a class="editor-right-tab-btn active" id="comments-tab"
+                        data-bs-toggle="tab" data-bs-target="#comments"
+                        role="tab" title="Comments" href="#comments">
+                        <i class="fas fa-comment-alt"></i>
+                    </a>
+                </li>
+                <li role="presentation">
+                    <a class="editor-right-tab-btn" id="track-changes-tab"
+                        data-bs-toggle="tab" data-bs-target="#track-changes"
+                        role="tab" title="Track Changes" href="#track-changes">
+                        <i class="fas fa-code-branch"></i>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content editor-right-tab-content" id="rightSidebarTabContent">
+
+            <!-- ── Comments Tab ── -->
+            <div class="tab-pane fade show active" id="comments" role="tabpanel">
+                <div class="right-tab-header-row">
+                    <span class="right-tab-title">
+                        Comments
+                        <span class="right-tab-badge">2</span>
+                    </span>
+                    <button class="right-tab-add-btn" title="New Comment" (click)="toggleAddComment()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+                <!-- New Comment Form -->
+                <div *ngIf="showNewCommentForm" class="new-comment-form">
+                    <textarea class="comment-textarea" rows="3"
+                        placeholder="Add a comment..."
+                        [(ngModel)]="newCommentText"></textarea>
+                    <div class="comment-form-actions">
+                        <button class="editor-btn editor-btn-ghost" (click)="cancelComment()">Cancel</button>
+                        <button class="editor-btn editor-btn-primary"
+                            [disabled]="!newCommentText.trim()"
+                            (click)="postComment()">Post</button>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="comment-filters">
+                    <div class="dropdown">
+                        <button class="editor-filter-btn dropdown-toggle" type="button"
+                            data-bs-toggle="dropdown">
+                            Users: All
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-sm">
+                            <li><a class="dropdown-item" href="#">All</a></li>
+                            <li><a class="dropdown-item" href="#">Editor A</a></li>
+                        </ul>
+                    </div>
+                    <div class="dropdown">
+                        <button class="editor-filter-btn dropdown-toggle" type="button"
+                            data-bs-toggle="dropdown">
+                            Type: All
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-sm">
+                            <li><a class="dropdown-item" href="#">All</a></li>
+                            <li><a class="dropdown-item" href="#">General</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Comment Cards -->
+                <div class="comment-card">
+                    <div class="comment-card-header">
+                        <span class="comment-author">Author A</span>
+                        <span class="comment-time">10:42 AM</span>
+                    </div>
+                    <p class="comment-text">Check the details here. Feels a bit rushed.</p>
+                    <a href="#" class="comment-reply-link">Reply</a>
+                </div>
+                <div class="comment-card">
+                    <div class="comment-card-header">
+                        <span class="comment-author">Author B</span>
+                        <span class="comment-time">Yesterday</span>
+                    </div>
+                    <p class="comment-text">Great description of the atmosphere!</p>
+                    <a href="#" class="comment-reply-link">Reply</a>
+                </div>
+            </div>
+
+            <!-- ── Track Changes Tab ── -->
+            <div class="tab-pane fade" id="track-changes" role="tabpanel">
+
+                <div class="right-tab-header-row">
+                    <span class="right-tab-title">
+                        Track Changes
+                        <span class="tc-status-badge"
+                            [class.on]="trackChangesEnabled"
+                            [class.off]="!trackChangesEnabled">
+                            {{ trackChangesEnabled ? 'ON' : 'OFF' }}
+                        </span>
+                    </span>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                            id="trackChangesToggle"
+                            [checked]="trackChangesEnabled"
+                            (change)="toggleTrackChanges()">
+                    </div>
+                </div>
+
+                <div class="tc-count" *ngIf="trackChanges.length > 0">
+                    {{ trackChanges.length }} change(s) recorded
+                </div>
+
+                <div *ngIf="trackChanges.length === 0" class="sidebar-empty-state">
+                    <i class="fas fa-code-branch sidebar-empty-icon"></i>
+                    <p class="sidebar-empty-text">No changes recorded</p>
+                    <span class="sidebar-empty-hint">Enable Track Changes and start editing</span>
+                </div>
+
+                <div *ngIf="trackChanges.length > 0" class="tc-list">
+                    <div *ngFor="let change of trackChanges"
+                        class="tc-item"
+                        [class.tc-insertion]="change.type === 'insertion'"
+                        [class.tc-deletion]="change.type === 'deletion'"
+                        [class.tc-modification]="change.type === 'modification'"
+                        (click)="navigateToChange(change)"
+                        title="Click to navigate to this change">
+
+                        <div class="tc-item-header">
+                            <span class="tc-type-badge badge"
+                                [class.bg-success]="change.type === 'insertion'"
+                                [class.bg-danger]="change.type === 'deletion'"
+                                [class.bg-warning]="change.type === 'modification'">
+                                <i [class]="getChangeIcon(change.type)" class="me-1"></i>
+                                {{ change.type | titlecase }}
+                            </span>
+                            <span class="tc-timestamp">{{ change.timestamp | date:'HH:mm, MMM d' }}</span>
+                        </div>
+                        <div class="tc-author">
+                            <i class="fas fa-user-circle me-1"></i>{{ change.author }}
+                        </div>
+                        <div class="tc-content text-truncate" [title]="getChangeLabel(change)">
+                            <ng-container *ngIf="change.type === 'modification'">
+                                <span class="tc-old-text">{{ change.oldContent }}</span>
+                                <i class="fas fa-arrow-right mx-1"></i>
+                                <span class="tc-new-text">{{ change.content }}</span>
+                            </ng-container>
+                            <ng-container *ngIf="change.type !== 'modification'">
+                                <span>{{ getChangeLabel(change) }}</span>
+                            </ng-container>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </aside>
+</div>
+
+<!-- ====== FOOTER ====== -->
+<footer class="editor-footer">
+    <div class="editor-footer-inner">
+        <span class="footer-save-label">{{ getLastSavedLabel() }}</span>
+        <div class="footer-zoom">
+            <i class="fas fa-search-minus footer-zoom-icon"></i>
+            <input type="range" class="footer-zoom-range" min="1" max="100" value="100" id="zoomRange">
+            <i class="fas fa-search-plus footer-zoom-icon"></i>
+            <span class="footer-zoom-pct">100%</span>
+        </div>
+    </div>
+</footer>

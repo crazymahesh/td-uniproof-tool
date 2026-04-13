@@ -1,0 +1,123 @@
+<div class="editor-toolbar d-flex align-items-center px-2 py-2 border-bottom sticky-top bg-white flex-wrap gap-2">
+    <ngx-editor-menu [editor]="editor" [toolbar]="toolbar">
+    </ngx-editor-menu>
+    <div class="table-dropdown-wrapper">
+        <button type="button" class="btn btn-sm btn-light table-icon-btn" (mousedown)="preserveEditorSelection($event)"
+            (click)="toggleTableDropdown()" title="Table">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                    d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm15 2h-4v3h4V4zm0 4h-4v3h4V8zm0 4h-4v3h3a1 1 0 0 0 1-1v-2zm-5 3v-3H6v3h4zm-5 0v-3H1v2a1 1 0 0 0 1 1h3zm-4-4h4V8H1v3zm0-4h4V4H1v3zm5-3v3h4V4H6zm4 4H6v3h4V8z" />
+            </svg>
+        </button>
+
+        <div class="table-dropdown" *ngIf="showTableDropdown">
+            <!-- Grid Selector -->
+            <div class="table-grid-selector" [style.--table-grid-cols]="gridCols">
+                <div class="grid-label">{{ getGridLabel() }}</div>
+                <div class="grid-container">
+                    <div class="grid-row" *ngFor="let row of [].constructor(gridRows); let r = index">
+                        <div class="grid-cell" *ngFor="let col of [].constructor(gridCols); let c = index"
+                            [class.hovered]="r < hoveredRow && c < hoveredCol"
+                            (mousedown)="preserveEditorSelection($event)"
+                            (mouseenter)="onGridCellHover(r + 1, c + 1)" (click)="onGridCellClick(r + 1, c + 1)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Operations -->
+            <div class="table-operations">
+                <div class="operation-section">
+                    <button type="button" class="operation-btn" (mousedown)="preserveEditorSelection($event)"
+                        (click)="addRowAfter(); closeTableDropdown()">
+                        <span class="operation-icon">⬇️</span> Insert Row Below
+                    </button>
+                    <button type="button" class="operation-btn" (mousedown)="preserveEditorSelection($event)"
+                        (click)="addColumnAfter(); closeTableDropdown()">
+                        <span class="operation-icon">➡️</span> Insert Column Right
+                    </button>
+                </div>
+                <div class="operation-section">
+                    <button type="button" class="operation-btn" (mousedown)="preserveEditorSelection($event)"
+                        (click)="deleteRow(); closeTableDropdown()">
+                        <span class="operation-icon">🗑️</span> Delete Row
+                    </button>
+                    <button type="button" class="operation-btn" (mousedown)="preserveEditorSelection($event)"
+                        (click)="deleteColumn(); closeTableDropdown()">
+                        <span class="operation-icon">🗑️</span> Delete Column
+                    </button>
+                </div>
+                <div class="operation-section">
+                    <button type="button" class="operation-btn" (mousedown)="preserveEditorSelection($event)"
+                        (click)="mergeCells(); closeTableDropdown()">
+                        <span class="operation-icon">⬌</span> Merge Cells
+                    </button>
+                    <button type="button" class="operation-btn" (mousedown)="preserveEditorSelection($event)"
+                        (click)="splitCell(); closeTableDropdown()">
+                        <span class="operation-icon">⬍</span> Split Cell
+                    </button>
+                </div>
+                <div class="operation-section">
+                    <button type="button" class="operation-btn danger" (mousedown)="preserveEditorSelection($event)"
+                        (click)="deleteTable(); closeTableDropdown()">
+                        <span class="operation-icon">❌</span> Delete Table
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Insert Comment Button -->
+    <button type="button" class="btn btn-sm btn-light" (mousedown)="preserveEditorSelection($event)"
+        (click)="addComment()" title="Insert Comment">
+        <i class="fas fa-comment-medical"></i>
+    </button>
+    <!-- Insert Citation Button -->
+    <button type="button" class="btn btn-sm btn-light" (mousedown)="preserveEditorSelection($event)"
+        (click)="openCitationModal()" title="Insert Citation">
+        <i class="fas fa-quote-right"></i>
+    </button>
+</div>
+
+<!-- Citation Modal Dialog -->
+<div class="modal fade" id="citationModal" [class.show]="showCitationModal" [style.display]="showCitationModal ? 'block' : 'none'" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Insert Citation</h5>
+                <button type="button" class="btn-close" (click)="closeCitationModal()" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="citationId" class="form-label">Citation ID</label>
+                    <input type="text" class="form-control" id="citationId" [(ngModel)]="citationForm.id" 
+                        placeholder="e.g., smith2023" />
+                </div>
+                <div class="mb-3">
+                    <label for="citationLabel" class="form-label">Citation Label (Display Text)</label>
+                    <input type="text" class="form-control" id="citationLabel" [(ngModel)]="citationForm.label" 
+                        placeholder="e.g., Smith et al., 2023" />
+                </div>
+                <div class="alert alert-info" *ngIf="selectedCitationText">
+                    <small><strong>Selected text:</strong> "{{ selectedCitationText }}"</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" (click)="closeCitationModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" (click)="insertCitation()">Insert Citation</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Backdrop -->
+<div class="modal-backdrop fade" *ngIf="showCitationModal" [class.show]="showCitationModal"></div>
+
+<div class="editor-main container-fluid px-3 py-3" style="height: calc(100vh - 130px - 40px); overflow-y: auto;">
+    <div class="writing-area">
+        <ngx-editor class="custom-editor" [editor]="editor" [ngModel]="htmlContent">
+            <ngx-editor-floating-menu [editor]="editor">
+                <ngx-editor-menu [editor]="editor" [toolbar]="floatingToolbar"></ngx-editor-menu>
+            </ngx-editor-floating-menu>
+        </ngx-editor>
+    </div>
+</div>

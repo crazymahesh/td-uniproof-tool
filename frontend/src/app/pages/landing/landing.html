@@ -1,0 +1,213 @@
+<div class="app-layout">
+
+  <!-- ====== LEFT SIDEBAR ====== -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <svg class="brand-icon" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 12C10 8.686 12.686 6 16 6C19.314 6 22 8.686 22 12C22 15.314 19.314 18 16 18C14.343 18 12.843 17.321 11.757 16.243M11.757 16.243C10.672 15.164 10 13.66 10 12M11.757 16.243L10 18M28 12C28 15.314 25.314 18 22 18C18.686 18 16 15.314 16 12C16 8.686 18.686 6 22 6C23.657 6 25.157 6.679 26.243 7.757M26.243 7.757C27.328 8.836 28 10.34 28 12M26.243 7.757L28 6" stroke="var(--primary-color)" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-text">UniProof</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">MAIN</div>
+
+      <a class="nav-item" [class.active]="activeTab === 'current'" (click)="setTab('current')">
+        <i class="fas fa-file-alt nav-item-icon"></i>
+        <span>Current Chapter</span>
+      </a>
+
+      <a class="nav-item" [class.active]="activeTab === 'all'" (click)="setTab('all')">
+        <i class="fas fa-file-alt nav-item-icon"></i>
+        <span>All Chapters</span>
+      </a>
+
+      <a class="nav-item">
+        <i class="fas fa-book-open nav-item-icon"></i>
+        <span>Quick Ref. Guide</span>
+      </a>
+
+      <a class="nav-item">
+        <i class="fas fa-bell nav-item-icon"></i>
+        <span>Notifications</span>
+        <span class="nav-badge">15</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-avatar">
+        {{ getUserInitials() }}
+      </div>
+      <div class="user-details">
+        <div class="user-name">{{ userInfo?.username || 'User' }}</div>
+        <div class="user-role">Author</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ====== MAIN CONTENT ====== -->
+  <div class="main-wrapper">
+
+    <!-- Header -->
+    <div class="main-header">
+      <div class="header-left">
+        <h1 class="header-title">
+          {{ curretDocLst?.projectType || 'Book Name' }}
+          <span class="header-isbn">(ISBN: {{ curretDocLst?.isbn || '978-3-16-148410-0' }})</span>
+        </h1>
+        <div class="header-subtitle">
+          {{ curretDocLst?.projectTitle || '' }}
+          @if (activeTab === 'current') {
+            <button class="btn-info-icon" title="Project Info"><i class="fas fa-info-circle"></i></button>
+          }
+        </div>
+      </div>
+      <img src="/img/td-logo.png" class="header-td-logo" alt="Thomson Digital">
+    </div>
+
+    <!-- Content -->
+    <div class="main-content">
+
+      <!-- ===== CURRENT CHAPTER TAB ===== -->
+      @if (activeTab === 'current') {
+        <div class="table-panel">
+          <div class="table-toolbar">
+            <div class="search-field">
+              <i class="fas fa-search"></i>
+              <input type="text" placeholder="Search by Chapter Title">
+            </div>
+          </div>
+
+          <table class="chapters-table">
+            <thead>
+              <tr>
+                <th>Chapter Title</th>
+                <th>Author Name</th>
+                <th>Last Updated By</th>
+                <th>Created Date</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (chapter of curretDocLst?.documents; track chapter.documentId) {
+                <tr>
+                  <td>{{ chapter.title }}</td>
+                  <td>{{ chapter.authorName || chapter.author || '-' }}</td>
+                  <td>{{ chapter.lastUpdatedBy }}</td>
+                  <td>{{ chapter.createdAt | date:'dd-MMM-yyyy' }}</td>
+                  <td>
+                    <span class="status-pill" [ngClass]="getStatusClass(chapter.status)">
+                      {{ getStatusLabel(chapter.status) }}
+                    </span>
+                  </td>
+                  <td>
+                    <button class="icon-btn" [routerLink]="['/editor', chapter.documentId]"
+                            [title]="getActionTitle(chapter.status)">
+                      <i [class]="getActionIcon(chapter.status)"></i>
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="empty-row">No chapters assigned.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <!-- ===== ALL CHAPTERS TAB ===== -->
+      @if (activeTab === 'all') {
+        <div class="table-panel">
+          <div class="table-toolbar">
+            <div class="search-field">
+              <i class="fas fa-search"></i>
+              <input type="text"
+                     placeholder="Search by Chapter Number, Title or Author"
+                     (input)="onSearch($event)">
+            </div>
+            <div class="filter-field">
+              <select (change)="onFilterChange($event)">
+                <option value="">All Status</option>
+                <option value="completed">Completed</option>
+                <option value="in-progress">In-Progress</option>
+                <option value="yet-to-start">Yet-to-Start</option>
+              </select>
+              <i class="fas fa-chevron-down filter-chevron"></i>
+            </div>
+          </div>
+
+          <table class="chapters-table">
+            <thead>
+              <tr>
+                <th>Chapter Number</th>
+                <th>Chapter Title</th>
+                <th>Author Name</th>
+                <th>Last Updated By</th>
+                <th>Created Date</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (chapter of pagedChapters; track chapter.chapterNo) {
+                <tr>
+                  <td>Chapter {{ chapter.chapterNo }}</td>
+                  <td>{{ chapter.title }}</td>
+                  <td>{{ chapter.author }}</td>
+                  <td>SYSTEM</td>
+                  <td>{{ chapter.submittedDate }}</td>
+                  <td>
+                    <span class="status-pill" [ngClass]="getStatusClass(chapter.status)">
+                      {{ getStatusLabel(chapter.status) }}
+                    </span>
+                  </td>
+                  <td>
+                    <button class="icon-btn" routerLink="/editor"
+                            [title]="getActionTitle(chapter.status)">
+                      <i [class]="getActionIcon(chapter.status)"></i>
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="7" class="empty-row">No chapters found matching your criteria.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          <!-- Pagination -->
+          @if (totalPages > 1) {
+            <div class="pagination-bar">
+              <button class="page-nav-btn"
+                      (click)="goToPage(allChaptersPage - 1)"
+                      [disabled]="allChaptersPage === 1">
+                ← Previous
+              </button>
+              <div class="page-numbers">
+                @for (p of getPagesArray(); track $index) {
+                  @if (p === -1) {
+                    <span class="page-ellipsis">...</span>
+                  } @else {
+                    <button class="page-num-btn"
+                            [class.active]="p === allChaptersPage"
+                            (click)="goToPage(p)">{{ p }}</button>
+                  }
+                }
+              </div>
+              <button class="page-nav-btn"
+                      (click)="goToPage(allChaptersPage + 1)"
+                      [disabled]="allChaptersPage === totalPages">
+                Next →
+              </button>
+            </div>
+          }
+        </div>
+      }
+
+    </div>
+  </div>
+</div>
