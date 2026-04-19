@@ -181,6 +181,13 @@
                     </a>
                 </li>
                 <li role="presentation">
+                    <a class="editor-right-tab-btn" id="queries-tab"
+                        data-bs-toggle="tab" data-bs-target="#queries"
+                        role="tab" title="Queries" href="#queries">
+                        <i class="fas fa-question-circle"></i>
+                    </a>
+                </li>
+                <li role="presentation">
                     <a class="editor-right-tab-btn" id="track-changes-tab"
                         data-bs-toggle="tab" data-bs-target="#track-changes"
                         role="tab" title="Track Changes" href="#track-changes">
@@ -198,7 +205,7 @@
                 <div class="right-tab-header-row">
                     <span class="right-tab-title">
                         Comments
-                        <span class="right-tab-badge">2</span>
+                        <span class="right-tab-badge">{{ comments.length }}</span>
                     </span>
                     <button class="right-tab-add-btn" title="New Comment" (click)="toggleAddComment()">
                         <i class="fas fa-plus"></i>
@@ -207,6 +214,14 @@
 
                 <!-- New Comment Form -->
                 <div *ngIf="showNewCommentForm" class="new-comment-form">
+                    <!-- Selected text preview -->
+                    <div *ngIf="pendingSelection && pendingSelection.selectedText" class="comment-selection-preview">
+                        <i class="fas fa-quote-left comment-selection-icon"></i>
+                        <span class="comment-selection-text">{{ pendingSelection.selectedText }}</span>
+                    </div>
+                    <div *ngIf="!pendingSelection || !pendingSelection.selectedText" class="comment-no-selection">
+                        <i class="fas fa-info-circle me-1"></i>No text selected — comment will be a general note.
+                    </div>
                     <textarea class="comment-textarea" rows="3"
                         placeholder="Add a comment..."
                         [(ngModel)]="newCommentText"></textarea>
@@ -218,46 +233,121 @@
                     </div>
                 </div>
 
-                <!-- Filters -->
-                <div class="comment-filters">
-                    <div class="dropdown">
-                        <button class="editor-filter-btn dropdown-toggle" type="button"
-                            data-bs-toggle="dropdown">
-                            Users: All
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-sm">
-                            <li><a class="dropdown-item" href="#">All</a></li>
-                            <li><a class="dropdown-item" href="#">Editor A</a></li>
-                        </ul>
-                    </div>
-                    <div class="dropdown">
-                        <button class="editor-filter-btn dropdown-toggle" type="button"
-                            data-bs-toggle="dropdown">
-                            Type: All
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-sm">
-                            <li><a class="dropdown-item" href="#">All</a></li>
-                            <li><a class="dropdown-item" href="#">General</a></li>
-                        </ul>
-                    </div>
+                <!-- Empty state -->
+                <div *ngIf="comments.length === 0 && !showNewCommentForm" class="sidebar-empty-state">
+                    <i class="fas fa-comment-alt sidebar-empty-icon"></i>
+                    <p class="sidebar-empty-text">No comments yet</p>
+                    <span class="sidebar-empty-hint">Select text and click <i class="fas fa-comment-medical"></i> in the toolbar, or use the <strong>+</strong> button above.</span>
                 </div>
 
                 <!-- Comment Cards -->
-                <div class="comment-card">
+                <div *ngFor="let comment of comments"
+                    class="comment-card comment-card-clickable"
+                    (click)="navigateToComment(comment)"
+                    title="Click to navigate to this comment">
                     <div class="comment-card-header">
-                        <span class="comment-author">Author A</span>
-                        <span class="comment-time">10:42 AM</span>
+                        <span class="comment-author">
+                            <i class="fas fa-user-circle me-1" style="color:#9ca3af;"></i>{{ comment.author }}
+                        </span>
+                        <span class="comment-time">{{ comment.timestamp | date:'HH:mm, MMM d' }}</span>
                     </div>
-                    <p class="comment-text">Check the details here. Feels a bit rushed.</p>
-                    <a href="#" class="comment-reply-link">Reply</a>
+                    <div *ngIf="comment.selectedText" class="comment-selected-text">
+                        <i class="fas fa-quote-left comment-quote-icon"></i>{{ comment.selectedText }}
+                    </div>
+                    <p class="comment-text">{{ comment.text }}</p>
                 </div>
-                <div class="comment-card">
-                    <div class="comment-card-header">
-                        <span class="comment-author">Author B</span>
-                        <span class="comment-time">Yesterday</span>
+            </div>
+
+            <!-- ── Queries Tab ── -->
+            <div class="tab-pane fade" id="queries" role="tabpanel">
+                <div class="right-tab-header-row">
+                    <span class="right-tab-title">
+                        Queries
+                        <span class="right-tab-badge query-badge">{{ queries.length }}</span>
+                    </span>
+                    <button class="right-tab-add-btn query-add-btn" title="New Query" (click)="toggleAddQuery()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+                <!-- New Query Form -->
+                <div *ngIf="showNewQueryForm" class="new-comment-form new-query-form">
+                    <div *ngIf="pendingQuerySelection && pendingQuerySelection.selectedText" class="query-selection-preview">
+                        <i class="fas fa-quote-left query-selection-icon"></i>
+                        <span class="comment-selection-text">{{ pendingQuerySelection.selectedText }}</span>
                     </div>
-                    <p class="comment-text">Great description of the atmosphere!</p>
-                    <a href="#" class="comment-reply-link">Reply</a>
+                    <div *ngIf="!pendingQuerySelection || !pendingQuerySelection.selectedText" class="comment-no-selection">
+                        <i class="fas fa-info-circle me-1"></i>No text selected — query will be a general note.
+                    </div>
+                    <textarea class="comment-textarea" rows="3"
+                        placeholder="Enter your query..."
+                        [(ngModel)]="newQueryText"></textarea>
+                    <div class="comment-form-actions">
+                        <button class="editor-btn editor-btn-ghost" (click)="cancelQuery()">Cancel</button>
+                        <button class="editor-btn query-post-btn"
+                            [disabled]="!newQueryText.trim()"
+                            (click)="postQuery()">Post Query</button>
+                    </div>
+                </div>
+
+                <!-- Empty state -->
+                <div *ngIf="queries.length === 0 && !showNewQueryForm" class="sidebar-empty-state">
+                    <i class="fas fa-question-circle sidebar-empty-icon" style="color:#a78bfa;"></i>
+                    <p class="sidebar-empty-text">No queries yet</p>
+                    <span class="sidebar-empty-hint">Select text and click <i class="fas fa-question-circle"></i> in the toolbar, or use the <strong>+</strong> button above.</span>
+                </div>
+
+                <!-- Query Cards -->
+                <div *ngFor="let query of queries" class="query-card">
+
+                    <!-- Card header: click to navigate -->
+                    <div class="query-card-nav" (click)="navigateToQuery(query)" title="Click to navigate to this query">
+                        <div class="query-card-header">
+                            <span class="comment-author">
+                                <i class="fas fa-user-circle me-1" style="color:#9ca3af;"></i>{{ query.author }}
+                            </span>
+                            <span class="comment-time">{{ query.timestamp | date:'HH:mm, MMM d' }}</span>
+                        </div>
+                        <div *ngIf="query.selectedText" class="query-selected-text">
+                            <i class="fas fa-quote-left comment-quote-icon"></i>{{ query.selectedText }}
+                        </div>
+                        <p class="comment-text query-text">{{ query.text }}</p>
+                    </div>
+
+                    <!-- Replies list -->
+                    <div *ngIf="query.replies.length > 0" class="query-replies">
+                        <div *ngFor="let reply of query.replies" class="query-reply-item">
+                            <div class="query-reply-header">
+                                <span class="query-reply-author">
+                                    <i class="fas fa-user-circle me-1" style="color:#9ca3af;"></i>{{ reply.author }}
+                                </span>
+                                <span class="comment-time">{{ reply.timestamp | date:'HH:mm, MMM d' }}</span>
+                            </div>
+                            <p class="query-reply-text">{{ reply.text }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Reply toggle -->
+                    <div class="query-card-actions">
+                        <button class="query-reply-toggle-btn" (click)="toggleQueryReply(query.id)">
+                            <i class="fas fa-reply me-1"></i>
+                            {{ query.replies.length > 0 ? 'Reply (' + query.replies.length + ')' : 'Reply' }}
+                        </button>
+                    </div>
+
+                    <!-- Inline reply form -->
+                    <div *ngIf="expandedQueryId === query.id" class="query-reply-form">
+                        <textarea class="comment-textarea query-reply-textarea" rows="2"
+                            placeholder="Write a reply..."
+                            [(ngModel)]="replyTexts[query.id]"></textarea>
+                        <div class="comment-form-actions">
+                            <button class="editor-btn editor-btn-ghost"
+                                (click)="toggleQueryReply(query.id)">Cancel</button>
+                            <button class="editor-btn query-post-btn"
+                                [disabled]="!replyTexts[query.id]?.trim()"
+                                (click)="postReply(query.id)">Reply</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 

@@ -71,6 +71,11 @@
         (click)="addComment()" title="Insert Comment">
         <i class="fas fa-comment-medical"></i>
     </button>
+    <!-- Insert Query Button -->
+    <button type="button" class="btn btn-sm btn-light" (mousedown)="preserveEditorSelection($event)"
+        (click)="addQuery()" title="Insert Query">
+        <i class="fas fa-question-circle"></i>
+    </button>
     <!-- Insert Citation Button -->
     <button type="button" class="btn btn-sm btn-light" (mousedown)="preserveEditorSelection($event)"
         (click)="openCitationModal()" title="Insert Citation">
@@ -120,4 +125,16 @@
             </ngx-editor-floating-menu>
         </ngx-editor>
     </div>
+</div>
+
+<!-- Highlight tooltip popup (comments & queries, fixed-position) -->
+<div *ngIf="showCommentTooltip"
+     class="comment-tooltip-popup"
+     [class.query-tooltip-popup]="tooltipType === 'query'"
+     [style.top.px]="tooltipTop"
+     [style.left.px]="tooltipLeft">
+    <i [class]="tooltipType === 'query'
+          ? 'fas fa-question-circle query-tooltip-icon'
+          : 'fas fa-comment-alt comment-tooltip-icon'"></i>
+    <span class="comment-tooltip-text">{{ tooltipText }}</span>
 </div>

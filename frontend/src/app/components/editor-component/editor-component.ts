@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgxEditorModule, Editor, Toolbar, NgxEditorFloatingMenuComponent } from 'ngx-editor';
 import { CommentService } from '../../services/comment.service';
+import { QueryService } from '../../services/query.service';
 import { TrackChangesService } from '../../services/track-changes.service';
 import { UserService } from '../../services/user.service';
 import { jatsToHtmlMaster } from '../../utils/jats-to-html';
@@ -158,6 +159,7 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy, OnChan
 
   constructor(
     private commentService: CommentService,
+    private queryService: QueryService,
     private trackChangesService: TrackChangesService,
     private userService: UserService,
     private articleService: ArticleService,
@@ -170,7 +172,76 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy, OnChan
   }
 
   addComment(): void {
-    this.commentService.triggerAddComment();
+    const { selection } = this.editor.view.state;
+    const { from, to } = selection;
+    const selectedText = from !== to
+      ? this.editor.view.state.doc.textBetween(from, to)
+      : '';
+    this.commentService.triggerAddComment(from, to, selectedText);
+  }
+
+  applyCommentHighlight(from: number, to: number, commentId: string, commentText: string): void {
+    if (!this.editor?.view) return;
+    const { state, dispatch } = this.editor.view;
+    const commentMark = state.schema.marks['comment'].create({ id: commentId, text: commentText });
+    dispatch(state.tr.addMark(from, to, commentMark));
+  }
+
+  addQuery(): void {
+    const { selection } = this.editor.view.state;
+    const { from, to } = selection;
+    const selectedText = from !== to
+      ? this.editor.view.state.doc.textBetween(from, to)
+      : '';
+    this.queryService.triggerAddQuery(from, to, selectedText);
+  }
+
+  applyQueryHighlight(from: number, to: number, queryId: string, queryText: string): void {
+    if (!this.editor?.view) return;
+    const { state, dispatch } = this.editor.view;
+    const queryMark = state.schema.marks['query'].create({ id: queryId, text: queryText });
+    dispatch(state.tr.addMark(from, to, queryMark));
+  }
+
+  // ── Shared highlight tooltip state (comments & queries) ──
+  showCommentTooltip = false;
+  tooltipText = '';
+  tooltipType: 'comment' | 'query' = 'comment';
+  tooltipTop = 0;
+  tooltipLeft = 0;
+
+  private commentClickHandler: ((e: MouseEvent) => void) | null = null;
+
+  private setupCommentTooltipListener(): void {
+    if (!this.editor?.view?.dom) return;
+    this.commentClickHandler = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
+      const commentEl = target.closest('.comment-highlight') as HTMLElement | null;
+      const queryEl   = target.closest('.query-highlight')   as HTMLElement | null;
+      const highlight = commentEl ?? queryEl;
+      if (!highlight) return;
+
+      const type = commentEl ? 'comment' : 'query';
+      const text = highlight.getAttribute(
+        type === 'comment' ? 'data-comment-text' : 'data-query-text'
+      ) || '';
+      const rect = highlight.getBoundingClientRect();
+
+      this.ngZone.run(() => {
+        if (this.showCommentTooltip && this.tooltipText === text && this.tooltipType === type) {
+          this.showCommentTooltip = false;
+        } else {
+          this.tooltipType = type;
+          this.tooltipText = text;
+          this.tooltipTop  = rect.bottom + 8;
+          this.tooltipLeft = Math.max(8, Math.min(rect.left, window.innerWidth - 280));
+          this.showCommentTooltip = true;
+        }
+        this.cdr.markForCheck();
+      });
+    };
+    this.editor.view.dom.addEventListener('click', this.commentClickHandler);
   }
 
   /**
@@ -316,6 +387,10 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy, OnChan
         error: (err) => console.error('Error loading article XML', err)
       });
     }, 100);
+
+    // Set up comment tooltip listener after ngx-editor has rendered its DOM
+    setTimeout(() => this.setupCommentTooltipListener(), 200);
+
     this.cdr.detectChanges();
   }
 
@@ -413,6 +488,9 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy, OnChan
   }
 
   ngOnDestroy(): void {
+    if (this.commentClickHandler && this.editor?.view?.dom) {
+      this.editor.view.dom.removeEventListener('click', this.commentClickHandler);
+    }
     this.editor?.destroy();
   }
 
@@ -433,16 +511,20 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy, OnChan
 
   @HostListener('document:mousedown', ['$event'])
   onDocumentMouseDown(event: MouseEvent): void {
-    if (!this.showTableDropdown) {
-      return;
-    }
-
     const target = event.target as Element | null;
-    if (target?.closest('.table-dropdown-wrapper')) {
-      return;
+
+    // Dismiss table dropdown when clicking outside its wrapper
+    if (this.showTableDropdown && !target?.closest('.table-dropdown-wrapper')) {
+      this.closeTableDropdown();
     }
 
-    this.closeTableDropdown();
+    // Dismiss comment tooltip when clicking outside the tooltip or any highlight span
+    if (this.showCommentTooltip &&
+        !target?.closest('.comment-tooltip-popup') &&
+        !target?.closest('.comment-highlight')) {
+      this.showCommentTooltip = false;
+      this.cdr.markForCheck();
+    }
   }
 
   closeTableDropdown(): void {

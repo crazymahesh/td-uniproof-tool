@@ -2,7 +2,8 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, inject, OnInit, OnDestroy, ViewEncapsulation, ViewChild, NgZone, ChangeDetectorRef } from '@angular/core';
 import { EditorComponent } from '../../components/editor-component/editor-component';
-import { CommentService } from '../../services/comment.service';
+import { CommentService, Comment, PendingSelection } from '../../services/comment.service';
+import { QueryService, Query, PendingQuerySelection } from '../../services/query.service';
 import { TrackChangesService, TrackChange } from '../../services/track-changes.service';
 import { FigureMetadata } from '../../components/editor-component/figure.model';
 import { Subscription } from 'rxjs';
@@ -21,8 +22,19 @@ import { CommonServices } from '../../services/common-services';
   encapsulation: ViewEncapsulation.None
 })
 export class EditorView implements OnInit, OnDestroy {
+  // ── Comments ──
   showNewCommentForm = false;
   newCommentText = '';
+  pendingSelection: PendingSelection | null = null;
+  comments: Comment[] = [];
+
+  // ── Queries ──
+  showNewQueryForm = false;
+  newQueryText = '';
+  pendingQuerySelection: PendingQuerySelection | null = null;
+  queries: Query[] = [];
+  expandedQueryId: string | null = null;
+  replyTexts: { [queryId: string]: string } = {};
   figures: FigureMetadata[] = [];
   saveStatusText = 'Saved';
   lastSavedAt: Date | null = null;
@@ -51,6 +63,7 @@ export class EditorView implements OnInit, OnDestroy {
   constructor(
     private http: HttpClient, private userService: UserService,
     private commentService: CommentService,
+    private queryService: QueryService,
     private trackChangesService: TrackChangesService,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef,
@@ -69,8 +82,32 @@ export class EditorView implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.subscription.add(
-      this.commentService.showCommentForm$.subscribe(() => {
+      this.commentService.showCommentForm$.subscribe((sel: PendingSelection) => {
+        this.pendingSelection = sel;
         this.showNewCommentForm = true;
+        this.cdr.detectChanges();
+      })
+    );
+
+    this.subscription.add(
+      this.commentService.comments$.subscribe((comments: Comment[]) => {
+        this.comments = comments;
+        this.cdr.detectChanges();
+      })
+    );
+
+    this.subscription.add(
+      this.queryService.showQueryForm$.subscribe((sel: PendingQuerySelection) => {
+        this.pendingQuerySelection = sel;
+        this.showNewQueryForm = true;
+        this.cdr.detectChanges();
+      })
+    );
+
+    this.subscription.add(
+      this.queryService.queries$.subscribe((queries: Query[]) => {
+        this.queries = queries;
+        this.cdr.detectChanges();
       })
     );
 
@@ -120,21 +157,91 @@ export class EditorView implements OnInit, OnDestroy {
     this.showNewCommentForm = !this.showNewCommentForm;
     if (!this.showNewCommentForm) {
       this.newCommentText = '';
+      this.pendingSelection = null;
     }
   }
 
   postComment(): void {
-    if (this.newCommentText.trim()) {
-      console.log('Posting comment:', this.newCommentText);
-      // Logic for posting comment would go here
-      this.newCommentText = '';
-      this.showNewCommentForm = false;
+    const text = this.newCommentText.trim();
+    if (!text) return;
+
+    const author = this.userInfo?.username || this.userInfo?.name || this.userInfo?.email || 'Unknown Author';
+    const comment = this.commentService.addComment(text, author);
+
+    if (comment && this.editorComponent && comment.from !== comment.to) {
+      this.editorComponent.applyCommentHighlight(comment.from, comment.to, comment.id, comment.text);
     }
+
+    this.newCommentText = '';
+    this.showNewCommentForm = false;
+    this.pendingSelection = null;
   }
 
   cancelComment(): void {
     this.newCommentText = '';
     this.showNewCommentForm = false;
+    this.pendingSelection = null;
+  }
+
+  navigateToComment(comment: Comment): void {
+    if (this.editorComponent) {
+      this.editorComponent.navigateToPosition(comment.from, comment.to);
+    }
+  }
+
+  // ── Query actions ──
+
+  toggleAddQuery(): void {
+    this.showNewQueryForm = !this.showNewQueryForm;
+    if (!this.showNewQueryForm) {
+      this.newQueryText = '';
+      this.pendingQuerySelection = null;
+    }
+  }
+
+  postQuery(): void {
+    const text = this.newQueryText.trim();
+    if (!text) return;
+
+    const author = this.userInfo?.username || this.userInfo?.name || this.userInfo?.email || 'Unknown Author';
+    const query = this.queryService.addQuery(text, author);
+
+    if (query && this.editorComponent && query.from !== query.to) {
+      this.editorComponent.applyQueryHighlight(query.from, query.to, query.id, query.text);
+    }
+
+    this.newQueryText = '';
+    this.showNewQueryForm = false;
+    this.pendingQuerySelection = null;
+  }
+
+  cancelQuery(): void {
+    this.newQueryText = '';
+    this.showNewQueryForm = false;
+    this.pendingQuerySelection = null;
+  }
+
+  navigateToQuery(query: Query): void {
+    if (this.editorComponent) {
+      this.editorComponent.navigateToPosition(query.from, query.to);
+    }
+  }
+
+  toggleQueryReply(queryId: string): void {
+    this.expandedQueryId = this.expandedQueryId === queryId ? null : queryId;
+    if (!this.replyTexts[queryId]) {
+      this.replyTexts[queryId] = '';
+    }
+  }
+
+  postReply(queryId: string): void {
+    const text = (this.replyTexts[queryId] || '').trim();
+    if (!text) return;
+
+    const author = this.userInfo?.username || this.userInfo?.name || this.userInfo?.email || 'Unknown Author';
+    this.queryService.addReply(queryId, text, author);
+    this.replyTexts[queryId] = '';
+    this.expandedQueryId = null;
   }
 
   toggleTrackChanges(): void {

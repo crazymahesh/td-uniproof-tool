@@ -171,8 +171,48 @@ export const tableSchema = new Schema({
         { tag: 'span.search-highlight-inline', getAttrs: (dom: any) => ({ matchNumber: dom.getAttribute('data-match-number') }) },
         { tag: 'span[data-search-match]', getAttrs: (dom: any) => ({ matchNumber: dom.getAttribute('data-match-number') }) }
       ],
-      toDOM(mark) { 
-        return ['span', { class: 'search-highlight-inline', 'data-search-match': mark.attrs['matchNumber'] || '' }, 0]; 
+      toDOM(mark) {
+        return ['span', { class: 'search-highlight-inline', 'data-search-match': mark.attrs['matchNumber'] || '' }, 0];
+      }
+    },
+    comment: {
+      attrs: {
+        id: { default: null },
+        text: { default: '' },
+      },
+      parseDOM: [{
+        tag: 'span.comment-highlight',
+        getAttrs: (dom: any) => ({
+          id: dom.getAttribute('data-comment-id'),
+          text: dom.getAttribute('data-comment-text') || '',
+        }),
+      }],
+      toDOM(mark) {
+        return ['span', {
+          class: 'comment-highlight',
+          'data-comment-id': mark.attrs['id'] || '',
+          'data-comment-text': mark.attrs['text'] || '',
+        }, 0];
+      }
+    },
+    query: {
+      attrs: {
+        id: { default: null },
+        text: { default: '' },
+      },
+      parseDOM: [{
+        tag: 'span.query-highlight',
+        getAttrs: (dom: any) => ({
+          id: dom.getAttribute('data-query-id'),
+          text: dom.getAttribute('data-query-text') || '',
+        }),
+      }],
+      toDOM(mark) {
+        return ['span', {
+          class: 'query-highlight',
+          'data-query-id': mark.attrs['id'] || '',
+          'data-query-text': mark.attrs['text'] || '',
+        }, 0];
       }
     }
   }),
